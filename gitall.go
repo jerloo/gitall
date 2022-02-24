@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"sync"
 
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing/transport/ssh"
@@ -232,16 +233,24 @@ func (client *GitAllClient) Pull() error {
 	if err != nil {
 		return err
 	}
+	wg := sync.WaitGroup{}
 	for _, repoDir := range repoDirs {
-		logger.Info("Pulling %s", repoDir)
-		repo, err := client.openRepo(repoDir)
-		if err != nil {
-			return err
-		}
-		err = client.pullSingleRepo(repo)
-		if err != nil {
-			return err
-		}
+		wg.Add(1)
+		go func(rd string) error {
+			logger.Info("Pulling %s", rd)
+			repo, err := client.openRepo(rd)
+			if err != nil {
+				wg.Done()
+				return err
+			}
+			err = client.pullSingleRepo(repo)
+			if err != nil {
+				wg.Done()
+				return err
+			}
+			wg.Done()
+			return nil
+		}(repoDir)
 	}
 	return nil
 }
@@ -260,17 +269,26 @@ func (client *GitAllClient) Push() error {
 	if err != nil {
 		return err
 	}
+	wg := sync.WaitGroup{}
 	for _, repoDir := range repoDirs {
-		logger.Info("Pushing %s", repoDir)
-		repo, err := client.openRepo(repoDir)
-		if err != nil {
-			return err
-		}
-		err = client.pushSingleRepo(repo)
-		if err != nil {
-			return err
-		}
+		wg.Add(1)
+		go func(rd string) error {
+			logger.Info("Pushing %s", rd)
+			repo, err := client.openRepo(rd)
+			if err != nil {
+				wg.Done()
+				return err
+			}
+			err = client.pushSingleRepo(repo)
+			if err != nil {
+				wg.Done()
+				return err
+			}
+			wg.Done()
+			return nil
+		}(repoDir)
 	}
+	wg.Wait()
 	return nil
 }
 
@@ -280,20 +298,30 @@ func (client *GitAllClient) Sync() error {
 	if err != nil {
 		return err
 	}
+	wg := sync.WaitGroup{}
 	for _, repoDir := range repoDirs {
-		logger.Info("Syncing %s", repoDir)
-		repo, err := client.openRepo(repoDir)
-		if err != nil {
-			return err
-		}
-		err = client.pullSingleRepo(repo)
-		if err != nil {
-			return err
-		}
-		err = client.pushSingleRepo(repo)
-		if err != nil {
-			return err
-		}
+		wg.Add(1)
+		go func(rd string) error {
+			logger.Info("Syncing %s", rd)
+			repo, err := client.openRepo(rd)
+			if err != nil {
+				wg.Done()
+				return err
+			}
+			err = client.pullSingleRepo(repo)
+			if err != nil {
+				wg.Done()
+				return err
+			}
+			err = client.pushSingleRepo(repo)
+			if err != nil {
+				wg.Done()
+				return err
+			}
+			wg.Done()
+			return nil
+		}(repoDir)
 	}
+	wg.Wait()
 	return nil
 }
