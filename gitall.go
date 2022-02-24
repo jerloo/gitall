@@ -1,8 +1,11 @@
 package gitall
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sort"
@@ -25,8 +28,75 @@ func (l *CommandLogger) Info(msg string, args ...interface{}) {
 
 var logger *CommandLogger = &CommandLogger{}
 
+type GitAllStatus struct {
+	Pull *OperationStatus `json:"pull"`
+	Push *OperationStatus `json:"push"`
+	Sync *OperationStatus `json:"sync"`
+
+	statusfile string
+}
+
+func NewGitAllStatus(workspace string) *GitAllStatus {
+	return &GitAllStatus{
+		statusfile: filepath.Join(workspace, ".status.json"),
+	}
+}
+
+type OperationStatus struct {
+	DoneDirs   []string `json:"doneDirs"`
+	UndoneDirs []string `json:"undoneDirs"`
+}
+
+func (opStatus *OperationStatus) IsClear() bool {
+	return len(opStatus.UndoneDirs) == 0
+}
+
+func (status *GitAllStatus) Save() error {
+	if status.IsClear() {
+		return nil
+	}
+	jsonStr, err := json.Marshal(status)
+	if err != nil {
+		return err
+	}
+	return ioutil.WriteFile(status.statusfile, jsonStr, 0644)
+}
+
+func (status *GitAllStatus) Load() error {
+	if status.IsClear() {
+		return nil
+	}
+	bts, err := ioutil.ReadFile(status.statusfile)
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(bts, status)
+}
+
+func (status *GitAllStatus) IsClear() bool {
+	_, err := os.Stat(status.statusfile)
+	if err != nil {
+		return true
+	}
+	if !status.Pull.IsClear() {
+		return false
+	}
+	if !status.Push.IsClear() {
+		return false
+	}
+	if !status.Sync.IsClear() {
+		return false
+	}
+	return true
+}
+
+func (status *GitAllStatus) Clear() error {
+	return os.Remove(status.statusfile)
+}
+
 type GitAllClient struct {
 	workspace string
+	verbose   bool
 
 	auth *ssh.PublicKeys
 }
@@ -36,6 +106,7 @@ type NewGitAllClientOptions func(*GitAllClient)
 func WithVerbose(verbose bool) NewGitAllClientOptions {
 	return func(client *GitAllClient) {
 		logger.verbose = verbose
+		client.verbose = verbose
 	}
 }
 
@@ -51,7 +122,7 @@ func IfRepoIsClean(r *git.Repository) bool {
 
 func newAuth() (*ssh.PublicKeys, error) {
 	var publicKey *ssh.PublicKeys
-	sshPath := os.Getenv("HOME") + "/.ssh/id_rsa"
+	sshPath := filepath.Join(os.Getenv("HOME"), ".ssh/id_rsa")
 	publicKey, keyError := ssh.NewPublicKeysFromFile(ssh.DefaultUsername, sshPath, "")
 	if keyError != nil {
 		return nil, keyError
@@ -81,12 +152,33 @@ func NewGitAllClient(workspace string, options ...NewGitAllClientOptions) (*GitA
 	}
 
 	for _, opt := range options {
-		opt(client) //opt是个方法，入参是*Client，内部会修改client的值
+		opt(client)
 	}
 	return client, nil
 }
 
-func (client *GitAllClient) fetchAllDirs() ([]string, error) {
+type Mode string
+
+const (
+	ModePull Mode = "pull"
+	ModePush Mode = "push"
+	ModeSync Mode = "sync"
+)
+
+func (client *GitAllClient) fetchAllDirs(mode Mode) ([]string, error) {
+	status := NewGitAllStatus(client.workspace)
+	if !status.IsClear() {
+		switch mode {
+		case ModePull:
+			return status.Pull.UndoneDirs, nil
+		case ModePush:
+			return status.Push.UndoneDirs, nil
+		case ModeSync:
+			return status.Sync.UndoneDirs, nil
+		default:
+			return nil, fmt.Errorf("unknown mode: %s", mode)
+		}
+	}
 	items, err := os.ReadDir(client.workspace)
 	if err != nil {
 		return nil, err
@@ -114,15 +206,21 @@ func (client *GitAllClient) openRepo(dir string) (*git.Repository, error) {
 	return repo, nil
 }
 
+func (client *GitAllClient) progeess() io.Writer {
+	if client.verbose {
+		return os.Stdout
+	}
+	return nil
+}
+
 func (client *GitAllClient) pullSingleRepo(repo *git.Repository) error {
 	w, err := repo.Worktree()
 	if err != nil {
 		return err
 	}
 
-	err = w.Pull(&git.PullOptions{RemoteName: "origin", Auth: client.auth})
+	err = w.Pull(&git.PullOptions{RemoteName: "origin", Auth: client.auth, Progress: client.progeess()})
 	if errors.Is(err, git.NoErrAlreadyUpToDate) {
-		// fmt.Println("已是最新")
 		return nil
 	}
 	return err
@@ -130,7 +228,7 @@ func (client *GitAllClient) pullSingleRepo(repo *git.Repository) error {
 
 func (client *GitAllClient) Pull() error {
 	logger.Info("Pulling all in workspace %s", client.workspace)
-	repoDirs, err := client.fetchAllDirs()
+	repoDirs, err := client.fetchAllDirs(ModePull)
 	if err != nil {
 		return err
 	}
@@ -149,9 +247,8 @@ func (client *GitAllClient) Pull() error {
 }
 
 func (client *GitAllClient) pushSingleRepo(repo *git.Repository) error {
-	err := repo.Push(&git.PushOptions{RemoteName: "origin", Auth: client.auth})
+	err := repo.Push(&git.PushOptions{RemoteName: "origin", Auth: client.auth, Progress: client.progeess()})
 	if errors.Is(err, git.NoErrAlreadyUpToDate) {
-		// fmt.Println("已是最新")
 		return nil
 	}
 	return err
@@ -159,7 +256,7 @@ func (client *GitAllClient) pushSingleRepo(repo *git.Repository) error {
 
 func (client *GitAllClient) Push() error {
 	logger.Info("Pushing all in workspace %s", client.workspace)
-	repoDirs, err := client.fetchAllDirs()
+	repoDirs, err := client.fetchAllDirs(ModePush)
 	if err != nil {
 		return err
 	}
@@ -178,12 +275,13 @@ func (client *GitAllClient) Push() error {
 }
 
 func (client *GitAllClient) Sync() error {
-	logger.Info("Syncing all workspace %s", client.workspace)
-	repoDirs, err := client.fetchAllDirs()
+	logger.Info("Syncing all in workspace %s", client.workspace)
+	repoDirs, err := client.fetchAllDirs(ModeSync)
 	if err != nil {
 		return err
 	}
 	for _, repoDir := range repoDirs {
+		logger.Info("Syncing %s", repoDir)
 		repo, err := client.openRepo(repoDir)
 		if err != nil {
 			return err
