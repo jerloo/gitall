@@ -15,6 +15,7 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/transport/ssh"
 	"github.com/spf13/cobra"
 	cssh "golang.org/x/crypto/ssh"
+	"golang.org/x/sync/errgroup"
 )
 
 type CommandLogger struct {
@@ -233,26 +234,33 @@ func (client *GitAllClient) Pull() error {
 	if err != nil {
 		return err
 	}
-	wg := sync.WaitGroup{}
+	g := errgroup.Group{}
+	fn := func(rd string) error {
+		logger.Info("Pulling %s", rd)
+		repo, err := client.openRepo(rd)
+		if err != nil {
+			return err
+		}
+		err = client.pullSingleRepo(repo)
+		if err != nil {
+			return err
+		}
+		return nil
+	}
+	ch := make(chan string, 100)
 	for _, repoDir := range repoDirs {
-		wg.Add(1)
-		go func(rd string) error {
-			logger.Info("Pulling %s", rd)
-			repo, err := client.openRepo(rd)
-			if err != nil {
-				wg.Done()
-				return err
-			}
-			err = client.pullSingleRepo(repo)
-			if err != nil {
-				wg.Done()
-				return err
-			}
-			wg.Done()
-			return nil
+		go func(rd string) {
+			<-ch
+			g.Go(func() error {
+				return fn(rd)
+			})
 		}(repoDir)
 	}
-	return nil
+
+	for _, repoDir := range repoDirs {
+		ch <- repoDir
+	}
+	return g.Wait()
 }
 
 func (client *GitAllClient) pushSingleRepo(repo *git.Repository) error {
