@@ -5,7 +5,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+	http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,27 +16,30 @@ limitations under the License.
 package cmd
 
 import (
-	"fmt"
 	"os"
 
+	"github.com/jerloo/repos"
 	"github.com/spf13/cobra"
 
-	homedir "github.com/mitchellh/go-homedir"
 	"github.com/spf13/viper"
 )
 
-var cfgFile string
-var workspace string
-var verbose bool
+var (
+	cfgFile   string
+	workspace string
+	verbose   bool
+)
+
+var config *repos.ReposConfig
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
-	Use:   "gitall",
+	Use:   "repos",
 	Short: "Perform git operations of multiple repositories in batch.",
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
 	// Run: func(cmd *cobra.Command, args []string) {
-
+	// 	cmd.Printf("version: %s\n", config.Version)
 	// },
 }
 
@@ -53,13 +56,16 @@ func init() {
 	// Cobra supports persistent flags, which, if defined here,
 	// will be global for your application.
 
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.gitall.yaml)")
+	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.repos.yaml)")
 
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.
 	rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 
-	rootCmd.PersistentFlags().StringVar(&workspace, "workspace", "$HOME/cash", "Set workspace directory.")
+	home, err := os.Getwd()
+	cobra.CheckErr(err)
+
+	rootCmd.PersistentFlags().StringVar(&workspace, "workspace", home, "Set workspace directory.")
 	rootCmd.PersistentFlags().BoolVar(&verbose, "verbose", false, "Set verbose mode.")
 }
 
@@ -70,18 +76,25 @@ func initConfig() {
 		viper.SetConfigFile(cfgFile)
 	} else {
 		// Find home directory.
-		home, err := homedir.Dir()
+		// home, err := homedir.Dir()
+		// cobra.CheckErr(err)
+
+		home, err := os.Getwd()
 		cobra.CheckErr(err)
 
-		// Search config in home directory with name ".gitall" (without extension).
+		// Search config in home directory with name ".repos" (without extension).
 		viper.AddConfigPath(home)
-		viper.SetConfigName(".gitall")
+		viper.SetConfigName(".repos")
 	}
 
 	viper.AutomaticEnv() // read in environment variables that match
 
 	// If a config file is found, read it in.
 	if err := viper.ReadInConfig(); err == nil {
-		fmt.Fprintln(os.Stderr, "Using config file:", viper.ConfigFileUsed())
+		// fmt.Fprintln(os.Stderr, "Using config file:", viper.ConfigFileUsed())
+		err := viper.Unmarshal(&config)
+		if err != nil {
+			panic(err)
+		}
 	}
 }

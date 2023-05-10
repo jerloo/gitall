@@ -1,0 +1,6 @@
+repos:
+- name: repos
+  dir: ../../
+  url: git@github.com:jiejie-dev/gitall.git
+  branch: master
+version: "1"
