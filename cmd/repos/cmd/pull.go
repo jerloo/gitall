@@ -30,18 +30,23 @@ var pullCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		// Find home directory.
 		home, err := homedir.Dir()
-		cobra.CheckErr(err)
+		if err != nil {
+			panic(err)
+		}
 		workspace = strings.ReplaceAll(workspace, "$HOME", home)
 
 		client, err := repos.NewRepoManager(workspace,
 			repos.WithVerbose(verbose),
 			repos.WithConfig(config),
-			repos.WithCurrentWorkspace(),
 		)
-		cobra.CheckErr(err)
+		if err != nil {
+			panic(err)
+		}
 
 		err = client.Pull()
-		cobra.CheckErr(err)
+		if err != nil {
+			panic(err)
+		}
 	},
 }
 

@@ -24,7 +24,6 @@ var removeCmd = &cobra.Command{
 		client, err := repos.NewRepoManager(workspace,
 			repos.WithVerbose(verbose),
 			repos.WithConfig(config),
-			repos.WithCurrentWorkspace(),
 		)
 		cobra.CheckErr(err)
 

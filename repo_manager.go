@@ -51,16 +51,6 @@ func WithConfig(config *ReposConfig) NewRepoManagerClientOptions {
 	}
 }
 
-func WithCurrentWorkspace() NewRepoManagerClientOptions {
-	return func(client *RepoManager) {
-		var err error
-		client.workspace, err = os.Getwd()
-		if err != nil {
-			panic(err)
-		}
-	}
-}
-
 func IfRepoIsClean(r *git.Repository) bool {
 	w, err := r.Worktree()
 	cobra.CheckErr(err)
@@ -98,7 +88,8 @@ func NewRepoManager(workspace string, options ...NewRepoManagerClientOptions) (*
 	}
 
 	client := &RepoManager{
-		auth: auth,
+		auth:      auth,
+		workspace: workspace,
 	}
 
 	for _, opt := range options {
