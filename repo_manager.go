@@ -185,9 +185,12 @@ func (client *RepoManager) Sync() error {
 	logger.Info("Syncing all in workspace %s", client.workspace)
 	wg := sync.WaitGroup{}
 	for _, repoDir := range client.config.Repos {
+		if !IfRepoIsClean(repoDir.FullDir(client.workspace)) {
+			return fmt.Errorf("%s is not clean", repoDir.FullDir(client.workspace))
+		}
 		wg.Add(1)
 		go func(repoConfig *RepoConfig) error {
-			logger.Info("Syncing %s", repoConfig)
+			logger.Info("Syncing %s", repoConfig.Name)
 			repo, err := client.openRepo(repoConfig)
 			if err != nil {
 				wg.Done()
@@ -204,6 +207,7 @@ func (client *RepoManager) Sync() error {
 				return err
 			}
 			wg.Done()
+			logger.Info("Synced %s", repoConfig.Name)
 			return nil
 		}(repoDir)
 	}
@@ -221,7 +225,7 @@ func (client *RepoManager) Status() error {
 	}
 	for _, repoConfig := range client.config.Repos {
 		logger.Info("Statusing %s", repoConfig.Name)
-		clean := IfRepoIsClean(filepath.Join(client.workspace, repoConfig.Dir))
+		clean := IfRepoIsClean(repoConfig.FullDir(client.workspace))
 		fmt.Printf("%-"+strconv.Itoa(max)+"s %-4v\n", repoConfig.Name, clean)
 	}
 	return nil
