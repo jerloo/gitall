@@ -1,17 +1,19 @@
 package repos
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strconv"
 	"sync"
 
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing/transport/ssh"
-	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	cssh "golang.org/x/crypto/ssh"
 )
@@ -52,14 +54,16 @@ func WithConfig(config *ReposConfig) NewRepoManagerClientOptions {
 	}
 }
 
-func IfRepoIsClean(r *git.Repository) bool {
-	w, err := r.Worktree()
-	cobra.CheckErr(err)
-
-	status, err := w.Status()
-	cobra.CheckErr(err)
-
-	return status.IsClean()
+func IfRepoIsClean(dir string) bool {
+	cmd := exec.Command("git", "status", "--porcelain")
+	cmd.Dir = dir
+	var stdout bytes.Buffer
+	cmd.Stdout = &stdout
+	err := cmd.Run()
+	if err != nil {
+		panic(err)
+	}
+	return stdout.Len() == 0
 }
 
 func newAuth() (*ssh.PublicKeys, error) {
@@ -209,21 +213,16 @@ func (client *RepoManager) Sync() error {
 
 func (client *RepoManager) Status() error {
 	logger.Info("Statusing all in workspace %s", client.workspace)
+	max := 22
+	for repoName := range client.config.Repos {
+		if len(repoName) > max {
+			max = len(repoName) + 2
+		}
+	}
 	for _, repoConfig := range client.config.Repos {
 		logger.Info("Statusing %s", repoConfig.Name)
-		repo, err := client.openRepo(repoConfig)
-		if err != nil {
-			return err
-		}
-		w, err := repo.Worktree()
-		if err != nil {
-			return err
-		}
-		status, err := w.Status()
-		if err != nil {
-			return err
-		}
-		fmt.Println(status)
+		clean := IfRepoIsClean(filepath.Join(client.workspace, repoConfig.Dir))
+		fmt.Printf("%-"+strconv.Itoa(max)+"s %-4v\n", repoConfig.Name, clean)
 	}
 	return nil
 }

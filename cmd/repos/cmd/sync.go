@@ -16,10 +16,7 @@ limitations under the License.
 package cmd
 
 import (
-	"strings"
-
 	"github.com/jerloo/repos"
-	homedir "github.com/mitchellh/go-homedir"
 	"github.com/spf13/cobra"
 )
 
@@ -28,12 +25,7 @@ var syncCmd = &cobra.Command{
 	Use:   "sync",
 	Short: "Perform git pull && git push command of multiple repositories in batch.",
 	Run: func(cmd *cobra.Command, args []string) {
-		// Find home directory.
-		home, err := homedir.Dir()
-		cobra.CheckErr(err)
-		workspace = strings.ReplaceAll(workspace, "$HOME", home)
-
-		client, err := repos.NewRepoManager(workspace, repos.WithVerbose(verbose), repos.WithConfig(config))
+		client, err := repos.NewRepoManager(repos.WithVerbose(verbose), repos.WithConfig(config))
 		cobra.CheckErr(err)
 
 		err = client.Sync()

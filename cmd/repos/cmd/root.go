@@ -98,6 +98,10 @@ func initConfig() {
 			CfgFile: cfgFile,
 		}
 	}
-	config.Version = "1"
-	config.Repos = make(map[string]*repos.RepoConfig)
+	if config.Version == "" {
+		config.Version = "1"
+	}
+	if config.Repos == nil {
+		config.Repos = make(map[string]*repos.RepoConfig)
+	}
 }
