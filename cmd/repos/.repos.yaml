@@ -1,6 +1,0 @@
-repos:
-- name: repos
-  dir: puupees/puupee-app
-  url: git@e.coding.net:code2code/puupees/puupee-app.git
-  branch: master
-version: "1"

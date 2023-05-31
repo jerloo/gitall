@@ -4,10 +4,7 @@ Copyright © 2023 NAME HERE <EMAIL ADDRESS>
 package cmd
 
 import (
-	"strings"
-
 	"github.com/jerloo/repos"
-	homedir "github.com/mitchellh/go-homedir"
 	"github.com/spf13/cobra"
 )
 
@@ -16,13 +13,7 @@ var removeCmd = &cobra.Command{
 	Use:   "remove",
 	Short: "Remove a repository.",
 	Run: func(cmd *cobra.Command, args []string) {
-		// Find home directory.
-		home, err := homedir.Dir()
-		cobra.CheckErr(err)
-		workspace = strings.ReplaceAll(workspace, "$HOME", home)
-
-		client, err := repos.NewRepoManager(workspace,
-			repos.WithVerbose(verbose),
+		client, err := repos.NewRepoManager(repos.WithVerbose(verbose),
 			repos.WithConfig(config),
 		)
 		cobra.CheckErr(err)

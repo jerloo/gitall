@@ -1,8 +1,9 @@
 package repos
 
 type ReposConfig struct {
-	Version string        `yaml:"version"`
-	Repos   []*RepoConfig `yaml:"repos"`
+	CfgFile string                 `yaml:"-"`
+	Version string                 `yaml:"version"`
+	Repos   map[string]*RepoConfig `yaml:"repos"`
 }
 
 type RepoConfig struct {

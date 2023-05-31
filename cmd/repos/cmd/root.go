@@ -16,7 +16,9 @@ limitations under the License.
 package cmd
 
 import (
+	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/jerloo/repos"
 	"github.com/spf13/cobra"
@@ -25,9 +27,8 @@ import (
 )
 
 var (
-	cfgFile   string
-	workspace string
-	verbose   bool
+	cfgFile string
+	verbose bool
 )
 
 var config *repos.ReposConfig
@@ -56,36 +57,30 @@ func init() {
 	// Cobra supports persistent flags, which, if defined here,
 	// will be global for your application.
 
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.repos.yaml)")
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		panic(err)
+	}
+	defaultCfgFile := filepath.Join(homeDir, ".repos.yaml")
+
+	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", defaultCfgFile, "config file (default is $HOME/.repos.yaml)")
 
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.
 	rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 
-	home, err := os.Getwd()
-	cobra.CheckErr(err)
-
-	rootCmd.PersistentFlags().StringVar(&workspace, "workspace", home, "Set workspace directory.")
 	rootCmd.PersistentFlags().BoolVar(&verbose, "verbose", false, "Set verbose mode.")
 }
 
 // initConfig reads in config file and ENV variables if set.
 func initConfig() {
-	if cfgFile != "" {
-		// Use config file from the flag.
-		viper.SetConfigFile(cfgFile)
-	} else {
-		// Find home directory.
-		// home, err := homedir.Dir()
-		// cobra.CheckErr(err)
-
+	if cfgFile == "" {
 		home, err := os.Getwd()
 		cobra.CheckErr(err)
-
-		// Search config in home directory with name ".repos" (without extension).
-		viper.AddConfigPath(home)
-		viper.SetConfigName(".repos")
+		cfgFile = filepath.Join(home, ".repos.yaml")
 	}
+	fmt.Println("Using config file:", cfgFile)
+	viper.SetConfigFile(cfgFile)
 
 	viper.AutomaticEnv() // read in environment variables that match
 
@@ -96,5 +91,13 @@ func initConfig() {
 		if err != nil {
 			panic(err)
 		}
+		config.CfgFile = cfgFile
 	}
+	if config == nil {
+		config = &repos.ReposConfig{
+			CfgFile: cfgFile,
+		}
+	}
+	config.Version = "1"
+	config.Repos = make(map[string]*repos.RepoConfig)
 }

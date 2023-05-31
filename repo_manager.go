@@ -29,8 +29,8 @@ func (l *CommandLogger) Info(msg string, args ...interface{}) {
 var logger *CommandLogger = &CommandLogger{}
 
 type RepoManager struct {
-	workspace string
 	verbose   bool
+	workspace string
 
 	auth   *ssh.PublicKeys
 	config *ReposConfig
@@ -48,6 +48,7 @@ func WithVerbose(verbose bool) NewRepoManagerClientOptions {
 func WithConfig(config *ReposConfig) NewRepoManagerClientOptions {
 	return func(client *RepoManager) {
 		client.config = config
+		client.workspace = filepath.Dir(config.CfgFile)
 	}
 }
 
@@ -74,22 +75,14 @@ func newAuth() (*ssh.PublicKeys, error) {
 	return publicKey, nil
 }
 
-func NewRepoManager(workspace string, options ...NewRepoManagerClientOptions) (*RepoManager, error) {
-	dir, err := os.Stat(workspace)
-	if err != nil {
-		return nil, err
-	}
-	if !dir.IsDir() {
-		return nil, fmt.Errorf("%s is not a directory", workspace)
-	}
+func NewRepoManager(options ...NewRepoManagerClientOptions) (*RepoManager, error) {
 	auth, err := newAuth()
 	if err != nil {
 		return nil, err
 	}
 
 	client := &RepoManager{
-		auth:      auth,
-		workspace: workspace,
+		auth: auth,
 	}
 
 	for _, opt := range options {
@@ -105,9 +98,9 @@ func (client *RepoManager) openRepo(repoConfig *RepoConfig) (*git.Repository, er
 	if err != nil {
 		return nil, err
 	}
-	if !IfRepoIsClean(repo) {
-		return nil, fmt.Errorf("%s is not clean", repoPath)
-	}
+	// if !IfRepoIsClean(repo) {
+	// 	return nil, fmt.Errorf("%s is not clean", repoPath)
+	// }
 	return repo, nil
 }
 
@@ -235,11 +228,18 @@ func (client *RepoManager) Status() error {
 	return nil
 }
 
-func (client *RepoManager) Add(repoPath string) error {
+func (client *RepoManager) Add(repoPath string, dept int) error {
+	if dept < 0 {
+		return nil
+	}
 	logger.Info("Adding %s to workspace %s", repoPath, client.workspace)
+	dir, err := filepath.Rel(client.workspace, repoPath)
+	if err != nil {
+		return err
+	}
 	repoConfig := &RepoConfig{
 		Name: filepath.Base(repoPath),
-		Dir:  repoPath,
+		Dir:  dir,
 	}
 	repo, err := client.openRepo(repoConfig)
 	if errors.Is(err, git.ErrRepositoryNotExists) {
@@ -249,32 +249,30 @@ func (client *RepoManager) Add(repoPath string) error {
 		}
 		for _, file := range files {
 			if file.IsDir() {
-				if err := client.Add(filepath.Join(repoPath, file.Name())); err != nil {
+				if err := client.Add(filepath.Join(repoPath, file.Name()), dept-1); err != nil {
 					return err
 				}
 			}
 		}
-	} else {
+	} else if err == nil {
 		if _, err := repo.Branch("main"); err == nil {
 			repoConfig.Branch = "main"
 		} else if _, err := repo.Branch("master"); err == nil {
 			repoConfig.Branch = "master"
 		}
-		client.config.Repos = append(client.config.Repos, repoConfig)
+		client.config.Repos[repoConfig.Name] = repoConfig
 		viper.Set("repos", client.config.Repos)
+		logger.Info("Added %s to workspace %s", repoPath, client.workspace)
+	} else {
+		panic(err)
 	}
-
 	return viper.WriteConfig()
 }
 
 func (client *RepoManager) Remove(repoPath string) error {
 	logger.Info("Removing %s from workspace %s", repoPath, client.workspace)
-	for i, repoConfig := range client.config.Repos {
-		if repoConfig.Dir == repoPath {
-			client.config.Repos = append(client.config.Repos[:i], client.config.Repos[i+1:]...)
-			viper.Set("repos", client.config.Repos)
-			return viper.WriteConfig()
-		}
-	}
-	return nil
+	repoName := filepath.Base(repoPath)
+	delete(client.config.Repos, repoName)
+	viper.Set("repos", client.config.Repos)
+	return viper.WriteConfig()
 }
