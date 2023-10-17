@@ -2,7 +2,10 @@ module github.com/jerloo/repos
 
 go 1.17
 
-require github.com/spf13/viper v1.10.1
+require (
+	github.com/spf13/viper v1.10.1
+	golang.org/x/crypto v0.0.0-20210817164053-32db794688a5
+)
 
 require (
 	github.com/Microsoft/go-winio v0.4.16 // indirect
@@ -17,7 +20,6 @@ require (
 	github.com/kevinburke/ssh_config v0.0.0-20201106050909-4977a11b4351 // indirect
 	github.com/sergi/go-diff v1.1.0 // indirect
 	github.com/xanzy/ssh-agent v0.3.0 // indirect
-	golang.org/x/crypto v0.0.0-20210817164053-32db794688a5 // indirect
 	golang.org/x/net v0.0.0-20210813160813-60bc85c4be6d // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect

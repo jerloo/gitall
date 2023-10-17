@@ -1,0 +1,86 @@
+repos:
+  celery-flower-swagger:
+    name: celery-flower-swagger
+    dir: code/puupees/celery-flower-swagger
+    url: ""
+    branch: ""
+  puupee-agreement-generator:
+    name: puupee-agreement-generator
+    dir: code/puupees/puupee-agreement-generator
+    url: ""
+    branch: ""
+  puupee-api:
+    name: puupee-api
+    dir: code/puupees/puupee-api
+    url: ""
+    branch: master
+  puupee-api-axios:
+    name: puupee-api-axios
+    dir: code/puupees/puupee-api-axios
+    url: ""
+    branch: main
+  puupee-api-dart:
+    name: puupee-api-dart
+    dir: code/puupees/puupee-api-dart
+    url: ""
+    branch: master
+  puupee-api-generator:
+    name: puupee-api-generator
+    dir: code/puupees/puupee-api-generator
+    url: ""
+    branch: main
+  puupee-api-go:
+    name: puupee-api-go
+    dir: code/puupees/puupee-api-go
+    url: ""
+    branch: master
+  puupee-api-python:
+    name: puupee-api-python
+    dir: code/puupees/puupee-api-python
+    url: ""
+    branch: main
+  puupee-app:
+    name: puupee-app
+    dir: code/puupees/puupee-app
+    url: ""
+    branch: master
+  puupee-dev:
+    name: puupee-dev
+    dir: code/puupees/puupee-dev
+    url: ""
+    branch: ""
+  puupee-go:
+    name: puupee-go
+    dir: code/puupees/puupee-go
+    url: ""
+    branch: main
+  puupee-privacy:
+    name: puupee-privacy
+    dir: code/puupees/puupee-privacy
+    url: ""
+    branch: master
+  puupee-rsshub-route-creator:
+    name: puupee-rsshub-route-creator
+    dir: code/puupees/puupee-rsshub-route-creator
+    url: ""
+    branch: ""
+  puupee-sdk-go:
+    name: puupee-sdk-go
+    dir: code/puupees/puupee-sdk-go
+    url: ""
+    branch: main
+  puupee-service-new:
+    name: puupee-service-new
+    dir: code/puupees/puupee-service-new
+    url: ""
+    branch: ""
+  puupee-tools:
+    name: puupee-tools
+    dir: code/puupees/puupee-tools
+    url: ""
+    branch: master
+  puupees-admin:
+    name: puupees-admin
+    dir: code/puupees/puupees-admin
+    url: ""
+    branch: main
