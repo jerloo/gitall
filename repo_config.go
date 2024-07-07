@@ -9,7 +9,7 @@ type ReposConfig struct {
 }
 
 type RepoConfig struct {
-	Name   string `yaml:"name"`
+	Name   string `yaml:"-"`
 	Dir    string `yaml:"dir"`
 	Url    string `yaml:"url"`
 	Branch string `yaml:"branch"`

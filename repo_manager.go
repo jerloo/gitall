@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -246,7 +245,7 @@ func (client *RepoManager) Add(repoPath string, dept int) error {
 	}
 	repo, err := client.openRepo(repoConfig)
 	if errors.Is(err, git.ErrRepositoryNotExists) {
-		files, err := ioutil.ReadDir(repoPath)
+		files, err := os.ReadDir(repoPath)
 		if err != nil {
 			return err
 		}
@@ -263,6 +262,11 @@ func (client *RepoManager) Add(repoPath string, dept int) error {
 		} else if _, err := repo.Branch("master"); err == nil {
 			repoConfig.Branch = "master"
 		}
+		origin, err := repo.Remote("origin")
+		if err != nil {
+			return err
+		}
+		repoConfig.Url = origin.Config().URLs[0]
 		client.config.Repos[repoConfig.Name] = repoConfig
 		viper.Set("repos", client.config.Repos)
 		logger.Info("Added %s to workspace %s", repoPath, client.workspace)
